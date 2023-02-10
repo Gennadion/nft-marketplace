@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 error NftMarketplace__PriceMustBeAboveZero();
 error NftMarketplace__NotApprovedForMarketplace();
 error NftMarketplace__AlreadyListed(address nftAddress, uint256 tokenId);
+error NftMarketplace__NotOwner();
 
 contract NftMarketplace {
 	struct Listing {
@@ -35,12 +36,34 @@ contract NftMarketplace {
 		_;
 	}
 
+	modifier isOwner(
+		address nftAddress,
+		uint256 tokenId,
+		address spender
+	) {
+		IERC721 nft = IERC721(nftAddress);
+		address owner = nft.ownerOf(tokenId);
+		if (spender != owner) {
+			revert NftMarketplace__NotOwner();
+		}
+		_;
+	}
+
 	// Main Functions
+
+    /**
+     * @notice Method for listing NFT on the marketplace
+     * @param nftAddress : NFT Address
+     * @param tokenId : Token ID of NFT
+     * @param price : Sale price of the listed NFT
+     * @dev Users are able to list their NFTs and still hold them, without the 
+     * smart contract holding them instead.
+     */
 	function listItem(
 		address nftAddress,
 		uint256 tokenId,
 		uint256 price
-	) external notListed(nftAddress, tokenId, msg.sender) {
+	) external notListed(nftAddress, tokenId, msg.sender) isOwner(nftAddress, tokenId, msg.sender) {
 		if (price <= 0) {
 			revert NftMarketplace__PriceMustBeAboveZero();
 		}
