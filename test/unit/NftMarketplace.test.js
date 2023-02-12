@@ -83,4 +83,29 @@ const { developmentChains } = require("../../helper-hardhat.config");
 					assert.equal(deployerProceeds.toString(), PRICE.toString());
 				});
 			});
+
+			describe("cancelListing", function () {
+				beforeEach(async () => {
+					await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+				});
+				it("only owner can cancel the listing", async function () {
+					nftMarketplace = nftMarketplaceContract.connect(user);
+					await expect(
+						nftMarketplace.cancelListing(basicNft.address, TOKEN_ID)
+					).to.be.revertedWith("NftMarketplace__NotOwner");
+				});
+				it("emits an event and removes listing", async function () {
+					await expect(
+						nftMarketplace.cancelListing(basicNft.address, TOKEN_ID)
+					).to.be.emit(nftMarketplace, "ItemCancelled");
+					const listing = await nftMarketplace.getListing(basicNft.address, TOKEN_ID);
+					assert.equal(listing.price.toString(), "0");
+				});
+				it("only existing listings can be cancelled", async function () {
+					nftMarketplace.cancelListing(basicNft.address, TOKEN_ID);
+					await expect(
+						nftMarketplace.cancelListing(basicNft.address, TOKEN_ID)
+					).to.be.revertedWith("NftMarketplace__NotListed");
+				});
+			});
 	  });
