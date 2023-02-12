@@ -23,10 +23,33 @@ const { developmentChains } = require("../../helper-hardhat.config");
 			});
 
 			describe("listItem", function () {
+				it("reverts if the item is already listed", async function () {
+					await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+					await expect(
+						nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE)
+					).to.be.revertedWith("NftMarketplace__AlreadyListed");
+				});
+				it("reverts if the sender is not owner", async function () {
+					nftMarketplace = nftMarketplaceContract.connect(user);
+					await expect(
+						nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE)
+					).to.be.revertedWith("NftMarketplace__NotOwner");
+				});
 				it("reverts when price is equal to zero", async function () {
 					await expect(
 						nftMarketplace.listItem(basicNft.address, TOKEN_ID, "0")
 					).to.be.revertedWith("NftMarketplace__PriceMustBeAboveZero");
+				});
+				it("reverts if the NFT is not approved", async function () {
+					await basicNft.approve(ethers.constants.AddressZero, TOKEN_ID);
+					await expect(
+						nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE)
+					).to.be.revertedWith("NftMarketplace__NotApprovedForMarketplace");
+				});
+				it("emits an event upon successful listing", async function () {
+					await expect(
+						nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE)
+					).to.emit(nftMarketplace, "ItemListed");
 				});
 			});
 	  });
