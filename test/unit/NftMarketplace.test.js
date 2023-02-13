@@ -108,4 +108,48 @@ const { developmentChains } = require("../../helper-hardhat.config");
 					).to.be.revertedWith("NftMarketplace__NotListed");
 				});
 			});
+			describe("updateListing", function () {
+				it("updates only existing listings", async function () {
+					await expect(
+						nftMarketplace.updateListing(basicNft.address, TOKEN_ID, PRICE)
+					).to.be.revertedWith("NftMarketplace__NotListed");
+				});
+				it("only an owner can update the listing", async function () {
+					await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+					nftMarketplace = nftMarketplaceContract.connect(user);
+					await expect(
+						nftMarketplace.updateListing(basicNft.address, TOKEN_ID, PRICE)
+					).to.be.revertedWith("NftMarketplace__NotOwner");
+				});
+				it("emits an event and updates the listing", async function () {
+					await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+					newPrice = ethers.utils.parseEther("0.15");
+					await expect(
+						nftMarketplace.updateListing(basicNft.address, TOKEN_ID, newPrice)
+					).to.emit(nftMarketplace, "ItemListed");
+					const listing = await nftMarketplace.getListing(basicNft.address, TOKEN_ID);
+					assert.equal(listing.price.toString(), newPrice.toString());
+				});
+			});
+			describe("withdrawProceeds", function () {
+				it("reverts if there are zero proceeds", async function () {
+					await expect(nftMarketplace.withdrawProceeds()).to.be.revertedWith(
+						"NftMarketplace__NoProceeds"
+					);
+				});
+				it("successfully withdraws proceeds", async function () {
+					let proceeds;
+					await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+					nftMarketplace = nftMarketplaceContract.connect(user);
+					await nftMarketplace.buyItem(basicNft.address, TOKEN_ID, { value: PRICE });
+
+					nftMarketplace = nftMarketplaceContract.connect(deployer);
+					proceeds = await nftMarketplace.getProceeds(deployer.address);
+					assert.equal(proceeds.toString(), PRICE.toString());
+
+					await nftMarketplace.withdrawProceeds();
+					proceeds = await nftMarketplace.getProceeds(deployer.address);
+					assert.equal(proceeds.toString(), "0");
+				});
+			});
 	  });
